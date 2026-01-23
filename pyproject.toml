@@ -35,10 +35,9 @@ warn_return_any = true
 warn_unused_configs = true
 check_untyped_defs = true
 strict_optional = true
-exclude = ["venv", "tests", "phonenumber_field", ".*migrations/.*", ]
+exclude = ["venv", "tests", ".*migrations/.*", ]
 plugins = [
     "mypy_django_plugin.main",
-    "pydantic.mypy"
 ]
 
 [tool.black]
