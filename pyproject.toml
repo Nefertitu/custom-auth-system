@@ -14,6 +14,9 @@ python-dotenv = "^1.2.1"
 django-stubs = "^5.2.9"
 djangorestframework-stubs = "^3.16.7"
 ipython = "^9.9.0"
+jwt = "^1.4.0"
+pyjwt = "^2.10.1"
+packaging = "26.0"
 
 
 [tool.poetry.group.lint.dependencies]
