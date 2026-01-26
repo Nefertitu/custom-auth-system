@@ -1,8 +1,13 @@
+from datetime import datetime
+
+import jwt
 from django.contrib.auth.hashers import check_password
+from django.utils import timezone
 
 from rest_framework.exceptions import AuthenticationFailed
 
-from .models import User
+from config import settings
+from .models import User, BlacklistedToken
 from .utils import JWTUtils
 
 
@@ -39,11 +44,16 @@ class AuthService:
     def refresh_access_token(refresh_token: str) -> dict[str, str]:
         """Обновление access токена по refresh токену"""
 
+        if BlacklistedToken.is_blacklisted(refresh_token):
+            raise AuthenticationFailed("Токен отозван")
+
         try:
-            payload = JWTUtils.verify_token(refresh_token, "refresh")
+            payload = JWTUtils.verify_refresh_token(refresh_token, "refresh")
 
             user_id = payload.get("sub")
             user = User.objects.get(id=user_id, is_active=True)
+
+            TokenBlacklistService.add_to_blacklist(refresh_token, user)
 
             new_tokens = AuthService.create_token_pair(user)
 
@@ -53,4 +63,60 @@ class AuthService:
             raise AuthenticationFailed("Пользователь не найден")
         except Exception as e:
             raise AuthenticationFailed(f"Ошибка обновления токена: {str(e)}")
+
+    @staticmethod
+    def logout_user(user: User, refresh_token: str = None) -> bool:
+        """Выход пользователя c записью refresh-токена в black list"""
+
+        if refresh_token:
+            TokenBlacklistService.add_to_blacklist(refresh_token, user)
+            print(f"Выход выполнен, refresh токен {refresh_token} добавлен в черный список")
+
+        return True
+
+
+class TokenBlacklistService:
+    """Сервис для управления черным списком токенов"""
+
+    @staticmethod
+    def add_to_blacklist(token: str, user: User = None) -> bool:
+        """Добавление токена в черный список"""
+
+        try:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=settings.JWT_ALGORITHM,
+                audience=settings.JWT_AUDIENCE,
+                issuer=settings.JWT_ISSUER,
+                options={"verify_exp": False}   #НE проверять срок действия токена
+            )
+
+            expires_at = datetime.fromtimestamp(payload.get("exp", 0))
+
+            BlacklistedToken.objects.create(
+                token=token,
+                user=user or User.objects.get(id=payload.get("sub")),
+                expires_at=expires_at
+            )
+
+            return True
+
+        except Exception as e:
+            print(f"DEBUG: Error adding to blacklist: {e}")
+            return False
+
+    @staticmethod
+    def cleanup_expired() -> int:
+        """Очистка устаревших записей из blacklist и подсчет их количества"""
+
+        expired_tokens = BlacklistedToken.objects.filter(
+            expires_at__lt=timezone.now()
+        )
+
+        count = expired_tokens.count()
+
+        expired_tokens.delete()
+
+        return count
 

@@ -11,5 +11,5 @@ router = DefaultRouter()
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    #path("", include("authentication.urls", namespace="authentication")),
-]+ router.urls
+    path("api/", include("authentication.urls", namespace="authentication")),
+]

@@ -11,12 +11,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', default=SECRET_KEY + '-jwt')
-JWT_ISSUER = os.getenv('JWT_ISSUER')
-JWT_AUDIENCE = os.getenv('JWT_AUDIENCE')
-JWT_ACCESS_TOKEN_LIFETIME = timedelta(minutes=60)
-JWT_REFRESH_TOKEN_LIFETIME = timedelta(days=7)
-JWT_ALGORITHM = 'HS256'
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY не установлен в переменных окружения")
+
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", default=SECRET_KEY + "-jwt")
+JWT_ISSUER = os.getenv("JWT_ISSUER")
+JWT_AUDIENCE = os.getenv("JWT_AUDIENCE")
+JWT_ACCESS_TOKEN_LIFETIME = timedelta(minutes=5)   #minutes=15-60
+JWT_REFRESH_TOKEN_LIFETIME = timedelta(minutes=10)   #days=7-30
+JWT_ALGORITHM = "HS256"
 
 DEBUG = True if os.getenv("DEBUG") == "True" else False
 
@@ -24,9 +27,9 @@ ALLOWED_HOSTS = ["*"]
 
 
 REST_FRAMEWORK = {
-    "DEFAULT_FILTER_BACKENDS": [
-        "django_filters.rest_framework.DjangoFilterBackend",
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES":[
+        "authentication.backends.JWTAuthenticationBackend",
+   ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],

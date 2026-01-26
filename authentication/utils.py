@@ -1,3 +1,4 @@
+import os
 import uuid
 
 import jwt
@@ -28,7 +29,7 @@ class JWTUtils:
             "jti": str(uuid.uuid4()),
 
             # Кастомные claims
-            "token_type": "access",
+            "type": "access",
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
@@ -37,11 +38,13 @@ class JWTUtils:
             "is_superuser": user.is_superuser,
         }
 
-        return jwt.encode(
+        token = jwt.encode(
             payload,
             settings.JWT_SECRET_KEY,
-            algorithm="HS256"
+            algorithm=settings.JWT_ALGORITHM
         )
+
+        return token
 
     @staticmethod
     def create_refresh_token(user: User) -> str:
@@ -57,19 +60,22 @@ class JWTUtils:
             "jti": str(uuid.uuid4()),
 
             # Кастомные claims
-            "token_type": "refresh",
+            "type": "refresh",
             "email": user.email,
         }
 
-        return jwt.encode(
+        token = jwt.encode(
             payload,
             settings.JWT_SECRET_KEY,
             algorithm=settings.JWT_ALGORITHM
         )
+        print(f"DEBUG: создан refresh токен {token}")
+
+        return token
 
     @staticmethod
-    def verify_token(token, token_type="access"):
-        """Верификация токена"""
+    def verify_access_token(token, token_type="access"):
+        """Верификация access токена"""
 
         try:
             payload = jwt.decode(
@@ -82,8 +88,8 @@ class JWTUtils:
                     "require": ["exp", "iat", "sub", "jti", "type"],
                     "verify_exp": True,
                     "verify_iat": True,
-                    "verify_iss": True,
-                    "verify_aud": True,
+                    "verify_iss": settings.JWT_ISSUER is not None,
+                    "verify_aud": settings.JWT_AUDIENCE is not None,
                 }
             )
 
@@ -93,6 +99,33 @@ class JWTUtils:
             return payload
 
         except jwt.ExpiredSignatureError:
-            raise AuthenticationFailed("Токен истек")
+            raise AuthenticationFailed("Access токен истек")
         except jwt.InvalidTokenError as e:
-            raise AuthenticationFailed(f"Невалидный токен: {str(e)}")
+            raise AuthenticationFailed(f"Невалидный access токен: {str(e)}")
+
+    @staticmethod
+    def verify_refresh_token(refresh_token, token_type="refresh"):
+        """Верификация refresh токена"""
+
+        try:
+            payload = jwt.decode(
+                refresh_token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                issuer=settings.JWT_ISSUER,
+                audience=settings.JWT_AUDIENCE,
+                options={
+                    "verify_exp": True
+                }
+            )
+
+            if payload.get("type") != token_type:
+                raise AuthenticationFailed(f"Неверный тип токена: {payload.get("type")}")
+
+            return payload
+
+        except jwt.ExpiredSignatureError:
+            raise AuthenticationFailed("Refresh токен истек")
+        except jwt.InvalidTokenError as e:
+             raise AuthenticationFailed(f"Невалидный refresh токен: {str(e)}")
+            

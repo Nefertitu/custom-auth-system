@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from config import settings
+
 
 class User(AbstractUser):
     """
@@ -78,3 +80,30 @@ class User(AbstractUser):
     def __str__(self) -> str:
         """Строковое представление объекта пользователя"""
         return f"{self.email} ({self.get_full_name()})"
+
+
+class BlacklistedToken(models.Model):
+    """Модель 'черный список' refresh токенов"""
+
+    token = models.TextField(
+        unique=True,
+        db_index=True
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    blacklisted_at = models.DateTimeField(
+        auto_now_add=True
+    )
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["token"]),
+            models.Index(fields=["user", "blacklisted_at"]),
+        ]
+
+    @classmethod
+    def is_blacklisted(cls, token: str) -> bool:
+        return cls.objects.filter(token=token).exists()
