@@ -17,6 +17,7 @@ ipython = "^9.9.0"
 jwt = "^1.4.0"
 pyjwt = "^2.10.1"
 packaging = "26.0"
+django-filter = "^25.2"
 
 
 [tool.poetry.group.lint.dependencies]

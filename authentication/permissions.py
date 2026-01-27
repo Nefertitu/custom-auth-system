@@ -15,8 +15,8 @@ class HasOwner(Protocol):
 class IsSelfOnly(permissions.BasePermission):
     """Разрешение только для владельца объекта"""
 
-    def has_object_permission(self, request: Request, view: Any, obj: HasOwner) -> bool:
-        """ "Пользователь может читать/редактировать только свой профиль"""
+    def has_object_permission(self, request: Request, view: View, obj: HasOwner) -> bool:
+        """Пользователь может читать/редактировать только свой профиль"""
         return obj == request.user
 
 

@@ -15,6 +15,4 @@ class Command(BaseCommand):
 
         deleted_count = TokenBlacklistService.cleanup_expired()
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Удалено {deleted_count} устаревших токенов из blacklist")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Удалено {deleted_count} устаревших токенов из blacklist"))

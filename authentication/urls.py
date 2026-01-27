@@ -1,15 +1,14 @@
 from django.urls import include, path
 from rest_framework.permissions import AllowAny
-
 from rest_framework.routers import DefaultRouter
 
 from .apps import AuthenticationConfig
 from .views import (
+    CustomLoginView,
+    CustomLogoutView,
+    CustomRefreshTokenView,
     UserCreateApiView,
     UserProfileViewSet,
-    CustomLoginView,
-    CustomRefreshTokenView,
-    CustomLogoutView,
 )
 
 app_name = AuthenticationConfig.name

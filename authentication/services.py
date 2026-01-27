@@ -1,13 +1,14 @@
 from datetime import datetime
+from typing import Any, Optional
 
 import jwt
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
-
 from rest_framework.exceptions import AuthenticationFailed
 
 from config import settings
-from .models import User, BlacklistedToken
+
+from .models import BlacklistedToken, User
 from .utils import JWTUtils
 
 
@@ -29,7 +30,7 @@ class AuthService:
         return user
 
     @staticmethod
-    def create_token_pair(user: User) -> dict[str, str]:
+    def create_token_pair(user: User) -> dict[str, Any]:
         """Создание пары токенов (access + refresh)"""
 
         access_token = JWTUtils.create_access_token(user)
@@ -48,9 +49,12 @@ class AuthService:
             raise AuthenticationFailed("Токен отозван")
 
         try:
-            payload = JWTUtils.verify_refresh_token(refresh_token, "refresh")
+            payload: dict[str, Any] = JWTUtils.verify_refresh_token(refresh_token, "refresh")
 
             user_id = payload.get("sub")
+            if not user_id:
+                raise AuthenticationFailed("Токен не содержит идентификатор пользователя")
+
             user = User.objects.get(id=user_id, is_active=True)
 
             TokenBlacklistService.add_to_blacklist(refresh_token, user)
@@ -65,7 +69,7 @@ class AuthService:
             raise AuthenticationFailed(f"Ошибка обновления токена: {str(e)}")
 
     @staticmethod
-    def logout_user(user: User, refresh_token: str = None) -> bool:
+    def logout_user(user: User, refresh_token: Optional[str] = None) -> bool:
         """Выход пользователя c записью refresh-токена в black list"""
 
         if refresh_token:
@@ -79,8 +83,12 @@ class TokenBlacklistService:
     """Сервис для управления черным списком токенов"""
 
     @staticmethod
-    def add_to_blacklist(token: str, user: User = None) -> bool:
+    def add_to_blacklist(token: Optional[str], user: Optional["User"] = None) -> bool | Any:
         """Добавление токена в черный список"""
+
+        if token is None:
+            print("DEBUG: Token is None, cannot add to blacklist")
+            return False
 
         try:
             payload = jwt.decode(
@@ -89,15 +97,13 @@ class TokenBlacklistService:
                 algorithms=settings.JWT_ALGORITHM,
                 audience=settings.JWT_AUDIENCE,
                 issuer=settings.JWT_ISSUER,
-                options={"verify_exp": False}   #НE проверять срок действия токена
+                options={"verify_exp": False},  # НE проверять срок действия токена
             )
 
             expires_at = datetime.fromtimestamp(payload.get("exp", 0))
 
             BlacklistedToken.objects.create(
-                token=token,
-                user=user or User.objects.get(id=payload.get("sub")),
-                expires_at=expires_at
+                token=token, user=user or User.objects.get(id=payload.get("sub")), expires_at=expires_at
             )
 
             return True
@@ -110,13 +116,10 @@ class TokenBlacklistService:
     def cleanup_expired() -> int:
         """Очистка устаревших записей из blacklist и подсчет их количества"""
 
-        expired_tokens = BlacklistedToken.objects.filter(
-            expires_at__lt=timezone.now()
-        )
+        expired_tokens = BlacklistedToken.objects.filter(expires_at__lt=timezone.now())
 
         count = expired_tokens.count()
 
         expired_tokens.delete()
 
         return count
-

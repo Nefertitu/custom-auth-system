@@ -85,17 +85,9 @@ class User(AbstractUser):
 class BlacklistedToken(models.Model):
     """Модель 'черный список' refresh токенов"""
 
-    token = models.TextField(
-        unique=True,
-        db_index=True
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
-    )
-    blacklisted_at = models.DateTimeField(
-        auto_now_add=True
-    )
+    token = models.TextField(unique=True, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    blacklisted_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
 
     class Meta:

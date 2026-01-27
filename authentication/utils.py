@@ -1,11 +1,11 @@
-import os
 import uuid
+from typing import Any
 
 import jwt
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
 
-from authentication.models import User
+from authentication.models import BlacklistedToken, User
 from config import settings
 
 
@@ -27,7 +27,6 @@ class JWTUtils:
             "exp": timezone.now() + settings.JWT_ACCESS_TOKEN_LIFETIME,
             "iat": timezone.now(),
             "jti": str(uuid.uuid4()),
-
             # Кастомные claims
             "type": "access",
             "email": user.email,
@@ -38,11 +37,7 @@ class JWTUtils:
             "is_superuser": user.is_superuser,
         }
 
-        token = jwt.encode(
-            payload,
-            settings.JWT_SECRET_KEY,
-            algorithm=settings.JWT_ALGORITHM
-        )
+        token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
         return token
 
@@ -58,23 +53,18 @@ class JWTUtils:
             "exp": timezone.now() + settings.JWT_ACCESS_TOKEN_LIFETIME,
             "iat": timezone.now(),
             "jti": str(uuid.uuid4()),
-
             # Кастомные claims
             "type": "refresh",
             "email": user.email,
         }
 
-        token = jwt.encode(
-            payload,
-            settings.JWT_SECRET_KEY,
-            algorithm=settings.JWT_ALGORITHM
-        )
+        token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
         print(f"DEBUG: создан refresh токен {token}")
 
         return token
 
     @staticmethod
-    def verify_access_token(token, token_type="access"):
+    def verify_access_token(token: str, token_type: str = "access") -> dict[str, Any] | Any:
         """Верификация access токена"""
 
         try:
@@ -90,7 +80,7 @@ class JWTUtils:
                     "verify_iat": True,
                     "verify_iss": settings.JWT_ISSUER is not None,
                     "verify_aud": settings.JWT_AUDIENCE is not None,
-                }
+                },
             )
 
             if payload.get("type") != token_type:
@@ -104,8 +94,11 @@ class JWTUtils:
             raise AuthenticationFailed(f"Невалидный access токен: {str(e)}")
 
     @staticmethod
-    def verify_refresh_token(refresh_token, token_type="refresh"):
+    def verify_refresh_token(refresh_token: str, token_type: str = "refresh") -> dict[str, str] | Any:
         """Верификация refresh токена"""
+
+        if BlacklistedToken.is_blacklisted(refresh_token):
+            raise AuthenticationFailed("Токен отозван")
 
         try:
             payload = jwt.decode(
@@ -114,9 +107,7 @@ class JWTUtils:
                 algorithms=[settings.JWT_ALGORITHM],
                 issuer=settings.JWT_ISSUER,
                 audience=settings.JWT_AUDIENCE,
-                options={
-                    "verify_exp": True
-                }
+                options={"verify_exp": True},
             )
 
             if payload.get("type") != token_type:
@@ -127,5 +118,4 @@ class JWTUtils:
         except jwt.ExpiredSignatureError:
             raise AuthenticationFailed("Refresh токен истек")
         except jwt.InvalidTokenError as e:
-             raise AuthenticationFailed(f"Невалидный refresh токен: {str(e)}")
-            
+            raise AuthenticationFailed(f"Невалидный refresh токен: {str(e)}")

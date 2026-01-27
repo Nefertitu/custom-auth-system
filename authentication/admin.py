@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import User, BlacklistedToken
+from .models import BlacklistedToken, User
 
 
 @admin.register(User)
@@ -22,6 +22,7 @@ class UserAdmin(admin.ModelAdmin):
         "last_name",
     )
 
+
 @admin.register(BlacklistedToken)
 class BlackListedTokenAdmin(admin.ModelAdmin):
     """Администрирование черного списка токенов"""
@@ -32,6 +33,4 @@ class BlackListedTokenAdmin(admin.ModelAdmin):
         "blacklisted_at",
     )
     list_filter = ("blacklisted_at",)
-    search_fields = (
-        "blacklisted_at",
-    )
+    search_fields = ("blacklisted_at",)

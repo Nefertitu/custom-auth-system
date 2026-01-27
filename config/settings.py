@@ -17,8 +17,8 @@ if not SECRET_KEY:
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", default=SECRET_KEY + "-jwt")
 JWT_ISSUER = os.getenv("JWT_ISSUER")
 JWT_AUDIENCE = os.getenv("JWT_AUDIENCE")
-JWT_ACCESS_TOKEN_LIFETIME = timedelta(minutes=5)   #minutes=15-60
-JWT_REFRESH_TOKEN_LIFETIME = timedelta(minutes=10)   #days=7-30
+JWT_ACCESS_TOKEN_LIFETIME = timedelta(minutes=5)  # minutes=15-60
+JWT_REFRESH_TOKEN_LIFETIME = timedelta(minutes=10)  # days=7-30
 JWT_ALGORITHM = "HS256"
 
 DEBUG = True if os.getenv("DEBUG") == "True" else False
@@ -27,9 +27,9 @@ ALLOWED_HOSTS = ["*"]
 
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES":[
+    "DEFAULT_AUTHENTICATION_CLASSES": [
         "authentication.backends.JWTAuthenticationBackend",
-   ],
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
@@ -44,8 +44,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "products",
     "authentication",
-
 ]
 
 MIDDLEWARE = [

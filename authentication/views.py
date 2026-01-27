@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Any, List
+from typing import Any, List, Optional
 
 from django.db.models import QuerySet
-from rest_framework import permissions, viewsets, status
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import CreateAPIView
@@ -12,9 +12,15 @@ from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
 
 from .models import User
-from .permissions import IsSelfOnly, CanViewAllUsers, CanDeleteUsers
-from .serializers import LoginSerializer, RefreshTokenSerializer, UserProfileSerializer, UserCreateSerializer, \
-    ChangePasswordSerializer, LogoutSerializer
+from .permissions import CanDeleteUsers, CanViewAllUsers, IsSelfOnly
+from .serializers import (
+    ChangePasswordSerializer,
+    LoginSerializer,
+    LogoutSerializer,
+    RefreshTokenSerializer,
+    UserCreateSerializer,
+    UserProfileSerializer,
+)
 from .services import AuthService, TokenBlacklistService
 
 
@@ -65,12 +71,16 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     def get_queryset(self) -> QuerySet[User]:
         """Фильтрация - пользователь видит только себя, админ всех"""
 
-        if self.request.user.has_perm("users.view_all_users"):
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return User.objects.none()
+        if user.has_perm("users.view_all_users"):
             return User.objects.all()
-        return User.objects.filter(pk=self.request.user.id)
+        return User.objects.filter(pk=user.pk)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsSelfOnly])
-    def change_password(self, request, pk=None):
+    def change_password(self, request: Request, pk: Optional[int] = None) -> Response:
         """Смена пароля пользователя"""
 
         user = self.get_object()
@@ -78,21 +88,20 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             if not user.check_password(serializer.validated_data["old_password"]):
-                return Response(
-                    {"old_password": ["Неверный текущий пароль"]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"old_password": ["Неверный текущий пароль"]}, status=status.HTTP_400_BAD_REQUEST)
 
             user.set_password(serializer.validated_data["new_password"])
             user.save()
 
             new_tokens = AuthService.create_token_pair(user=user)
 
-            return Response({
-                "message": "Пароль успешно изменен",
-                "access": new_tokens.get("access"),
-                "refresh": new_tokens.get("refresh")
-            })
+            return Response(
+                {
+                    "message": "Пароль успешно изменен",
+                    "access": new_tokens.get("access"),
+                    "refresh": new_tokens.get("refresh"),
+                }
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -102,9 +111,11 @@ class CustomLoginView(APIView):
     Кастомный логин, возвращающий JWT токен.
     (Заменяет TokenObtainPairView)
     """
+
     permission_classes = [permissions.AllowAny]
 
     def post(self, request: Request) -> Response:
+        """Аутентификация по email и паролю"""
 
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -118,33 +129,33 @@ class CustomLoginView(APIView):
         user.last_login = datetime.now()
         user.save(update_fields=["last_login"])
 
-        return Response({
-            "user": {
-                "id": user.pk,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
+        return Response(
+            {
+                "user": {
+                    "id": user.pk,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                },
+                "tokens": tokens,
+                "message": "Вход выполнен успешно",
             },
-            "tokens": tokens,
-            "message": "Вход выполнен успешно"
-        })
-
-        # return Response({
-        #     'user': UserSerializer(user).data,
-        #     'access': access_token,
-        #     'refresh': refresh_token,
-        #     'token_type': 'Bearer',
-        #     'expires_in': settings.SIMPLE_JWT.get('ACCESS_TOKEN_LIFETIME', 300)
-        # })
+            status=status.HTTP_200_OK,
+        )
 
 
 class CustomRefreshTokenView(APIView):
-    """Кастомное обновление access токена по refresh токену"""
-    
+    """
+    Кастомный эндпоинт для обновления access токена.
+    Принимает валидный refresh токен и возвращает новую пару access/refresh токенов.
+    Старый refresh токен добавляется в черный список
+    """
+
     permission_classes = [permissions.AllowAny]
 
     def post(self, request: Request) -> Response:
-        
+        """Обновление access токена по валидному refresh токену"""
+
         serializer = RefreshTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -153,16 +164,17 @@ class CustomRefreshTokenView(APIView):
         try:
             new_tokens = AuthService.refresh_access_token(refresh_token)
 
-            return Response({
-                "access": new_tokens["access"],
-                "refresh": new_tokens["refresh"],
-                "message": "Токен обновлен"
-            })
+            return Response(
+                {"access": new_tokens["access"], "refresh": new_tokens["refresh"], "message": "Токен обновлен"},
+                status=status.HTTP_200_OK,
+            )
 
         except AuthenticationFailed as e:
+            return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
             return Response(
-                {"error": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED
+                {"error": str(e), "code": "internal_error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -174,6 +186,13 @@ class CustomLogoutView(APIView):
     next_page = "/"
 
     def post(self, request: Request) -> Response:
+        """
+        Выход пользователя из системы.
+        Если передан refresh токен, он добавляется в черный список
+        """
+
+        if not request.user.is_authenticated:
+            raise AuthenticationFailed("Пользователь не аутентифицирован", code="not_authenticated")
 
         serializer = LogoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -188,7 +207,7 @@ class CustomLogoutView(APIView):
 
         AuthService.logout_user(refresh_token)
 
-        return Response({
-            "message": "Выход выполнен успешно" +
-                       (f" refresh токен ({refresh_token}) отозван" if refresh_token else "")
-        })
+        return Response(
+            {"message": f"Выход выполнен успешно{' refresh токен отозван' if refresh_token else ''}"},
+            status=status.HTTP_200_OK,
+        )

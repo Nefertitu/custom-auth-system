@@ -4,7 +4,6 @@ from rest_framework.routers import DefaultRouter
 
 from authentication.apps import AuthenticationConfig
 
-
 app_name = AuthenticationConfig.name
 
 router = DefaultRouter()
