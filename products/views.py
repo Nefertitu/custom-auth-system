@@ -46,7 +46,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_queryset(self) -> QuerySet:
         """Фильтрация queryset в зависимости от прав"""
 
-        queryset = super().get_queryset()
+        queryset = Product.objects.all()
         user = self.request.user
         # Админы видят все
         if user.is_staff:

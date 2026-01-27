@@ -12,7 +12,7 @@ from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
 
 from .models import User
-from .permissions import CanDeleteUsers, CanViewAllUsers, IsSelfOnly
+from .permissions import CanDeleteUser, CanViewAllUsers, IsSelfOnly
 from .serializers import (
     ChangePasswordSerializer,
     LoginSerializer,
@@ -63,7 +63,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), CanViewAllUsers()]
 
         elif self.action == "destroy":
-            return [permissions.IsAuthenticated(), CanDeleteUsers()]
+            return [permissions.IsAuthenticated(), CanDeleteUser()]
 
         else:
             return [permissions.IsAuthenticated()]
@@ -75,7 +75,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
         if not user.is_authenticated:
             return User.objects.none()
-        if user.has_perm("users.view_all_users"):
+        if user.has_perm("authentication.can_view_all_users"):
             return User.objects.all()
         return User.objects.filter(pk=user.pk)
 
@@ -183,7 +183,7 @@ class CustomLogoutView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    next_page = "/"
+    next_page = "authentication:login"
 
     def post(self, request: Request) -> Response:
         """

@@ -17,21 +17,44 @@ class Command(BaseCommand):
 
         Product = apps.get_model("products", "Product")
 
+        manager_password = "123qwer1"
         manager = User.objects.create(
-            email="manager@example.com", password="manager123", first_name="Manager", is_staff=True
+            email="manager@example.com", password=manager_password, first_name="Manager", is_staff=True
         )
+        manager.set_password(manager_password)
+        manager.save()
 
-        user1 = User.objects.create(email="user1@example.com", first_name="User1", password="user123")
+        user_manager_password = "123qwer1"
+        user_manager = User.objects.create(
+            email="usermanager@example.com", password=user_manager_password, first_name="UserManager", is_staff=True
+        )
+        user_manager.set_password(user_manager_password)
+        user_manager.save()
 
-        user2 = User.objects.create(email="user2@example.com", first_name="User2", password="user123")
+        user1_password = "123qwer1"
+        user1 = User.objects.create(email="user1@example.com", first_name="User1", password=user1_password)
+        user1.set_password(user1_password)
+        user1.save()
 
-        # Выдаем права менеджеру
+        user2_password = "123qwer1"
+        user2 = User.objects.create(email="user2@example.com", first_name="User2", password=user2_password)
+        user2.set_password(user2_password)
+        user2.save()
+
+        # Выдаем права менеджерам
         content_type = ContentType.objects.get_for_model(Product)
+        user_content_type = ContentType.objects.get_for_model(User)
 
         can_change_price = Permission.objects.get(codename="can_change_price", content_type=content_type)
         can_view_all = Permission.objects.get(codename="can_view_all_products", content_type=content_type)
+        can_delete_products = Permission.objects.get(codename="can_delete_product", content_type=content_type)
 
-        manager.user_permissions.add(can_change_price, can_view_all)
+        manager.user_permissions.add(can_change_price, can_view_all, can_delete_products)
+
+        can_view_all_users = Permission.objects.get(codename="can_view_all_users", content_type=user_content_type)
+        can_delete_user = Permission.objects.get(codename="can_delete_user", content_type=user_content_type)
+
+        user_manager.user_permissions.add(can_view_all_users, can_delete_user)
 
         # Создаем продукты
         products = [
@@ -74,9 +97,10 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "Тестовые данные созданы:\n"
-                "- Менеджер: manager/manager123 (может менять цены)\n"
-                "- Пользователь 1: user1/user123 (владелец ноутбука)\n"
-                "- Пользователь 2: user2/user123 (владелец смартфона)\n"
+                "- Менеджер: manager/123qwer1 (может менять цены, удалять продукты, просматривать список is_active продуктов)\n"
+                "- Менеджер пользователей: user_manager/123qwer1 (может удалять пользователей, просматривать список пользователей)\n"
+                "- Пользователь 1: user1/123qwer1 (владелец ноутбука)\n"
+                "- Пользователь 2: user2/123qwer1 (владелец смартфона)\n"
                 "- Создано 4 продукта (3 активных, 1 неактивный)"
             )
         )

@@ -62,13 +62,12 @@ class User(AbstractUser):
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
+        ordering = ["-created_at"]
 
-    ordering = ["-created_at"]
-
-    permissions = [
-        ("can_view_all_users", "Может видеть всех пользователей"),
-        ("can_delete_user", "Может удалять пользователей"),
-    ]
+        permissions = [
+            ("can_view_all_users", "Может видеть всех пользователей"),
+            ("can_delete_user", "Может удалять пользователей"),
+        ]
 
     def get_full_name(self) -> str:
         """Возвращает полное имя пользователя"""
