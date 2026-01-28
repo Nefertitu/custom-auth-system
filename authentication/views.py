@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, List, Optional
 
 from django.db.models import QuerySet
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, status, viewsets, generics
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import CreateAPIView
@@ -35,6 +35,40 @@ class UserCreateApiView(CreateAPIView):
         """Метод для создания профиля пользователя (POST /register/)"""
 
         serializer.save(is_active=True)
+
+
+class UserDeleteView(generics.DestroyAPIView):
+    """Пользователь удаляет свой аккаунт (мягкое удаление)"""
+    permission_classes = [permissions.IsAuthenticated, IsSelfOnly]
+    queryset = User.objects.all()
+
+    def get_object(self):
+        """"Возвращает текущего аутентифицированного пользователя для удаления"""
+        return self.request.user
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Мягкое удаление пользователя"""
+
+        user = self.get_object()
+        user.soft_delete()
+
+        refresh_token = request.data.get("refresh")
+
+        if refresh_token:
+            TokenBlacklistService.add_to_blacklist(
+                token=refresh_token,
+                user=request.user,
+            )
+
+            AuthService.logout_user(refresh_token)
+
+        return Response(
+            {
+                "message": "Аккаунт удален (деактивирован)",
+                "detail": "Вы можете восстановить аккаунт, обратившись в поддержку"
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):

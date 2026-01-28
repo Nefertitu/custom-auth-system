@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 from config import settings
 
@@ -42,6 +43,11 @@ class User(AbstractUser):
         default=True,
         help_text="Активен/Удален (Снять отметку, сделав аккаунт пользователя неактивным)",
     )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Дата удаления"
+    )
     created_at = models.DateTimeField(
         verbose_name="Дата создания учетной записи",
         auto_now_add=True,
@@ -75,6 +81,14 @@ class User(AbstractUser):
         if self.last_name or (self.last_name and self.middle_name):
             return f"{self.first_name} {self.middle_name} {self.last_name}"
         return f"{self.first_name}"
+
+    def soft_delete(self) -> None:
+        """Мягкое удаление - деактивация"""
+
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.set_unusable_password()
+        self.save()
 
     def __str__(self) -> str:
         """Строковое представление объекта пользователя"""

@@ -8,7 +8,7 @@ from .views import (
     CustomLogoutView,
     CustomRefreshTokenView,
     UserCreateApiView,
-    UserProfileViewSet,
+    UserProfileViewSet, UserDeleteView,
 )
 
 app_name = AuthenticationConfig.name
@@ -22,5 +22,6 @@ urlpatterns = [
     path("login/", CustomLoginView.as_view(permission_classes=(AllowAny,)), name="login"),
     path("token/refresh/", CustomRefreshTokenView.as_view(), name="token_refresh"),
     path("logout/", CustomLogoutView.as_view(), name="logout"),
+    path("delete_me/", UserDeleteView.as_view(), name="user_delete_me"),
     path("", include(router.urls)),
 ]
