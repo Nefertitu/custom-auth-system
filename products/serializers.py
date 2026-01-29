@@ -8,7 +8,7 @@ from .models import Product
 class ProductSerializer(serializers.ModelSerializer):
     """Сериализатор для продуктов"""
 
-    owner = serializers.CharField(source="created_by.username", read_only=True)
+    owner = serializers.CharField(source="created_by.email", read_only=True)
 
     class Meta:
         model = Product

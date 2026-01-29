@@ -1,7 +1,7 @@
-from datetime import datetime
 from typing import Any, List, Optional
 
 from django.db.models import QuerySet
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets, generics
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
@@ -160,7 +160,7 @@ class CustomLoginView(APIView):
 
         tokens = AuthService.create_token_pair(user)
 
-        user.last_login = datetime.now()
+        user.last_login = timezone.now()
         user.save(update_fields=["last_login"])
 
         return Response(
@@ -239,7 +239,7 @@ class CustomLogoutView(APIView):
                 user=request.user,
             )
 
-        AuthService.logout_user(refresh_token)
+        AuthService.logout_user(user=request.user, refresh_token=refresh_token)
 
         return Response(
             {"message": f"Выход выполнен успешно{' refresh токен отозван' if refresh_token else ''}"},

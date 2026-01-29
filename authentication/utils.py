@@ -50,7 +50,7 @@ class JWTUtils:
             "sub": str(user.pk),
             "iss": settings.JWT_ISSUER,
             "aud": settings.JWT_AUDIENCE,
-            "exp": timezone.now() + settings.JWT_ACCESS_TOKEN_LIFETIME,
+            "exp": timezone.now() + settings.JWT_REFRESH_TOKEN_LIFETIME,
             "iat": timezone.now(),
             "jti": str(uuid.uuid4()),
             # Кастомные claims
@@ -59,7 +59,6 @@ class JWTUtils:
         }
 
         token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-        print("DEBUG: создан refresh токен")
 
         return token
 
