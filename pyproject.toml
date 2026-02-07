@@ -13,6 +13,13 @@ psycopg2-binary = "^2.9.11"
 python-dotenv = "^1.2.1"
 django-stubs = "^5.2.9"
 djangorestframework-stubs = "^3.16.7"
+ipython = "^9.9.0"
+jwt = "^1.4.0"
+pyjwt = "^2.10.1"
+packaging = "26.0"
+django-filter = "^25.2"
+drf-yasg = "^1.21.14"
+cryptography = "46.0.4"
 
 
 [tool.poetry.group.lint.dependencies]
@@ -35,10 +42,9 @@ warn_return_any = true
 warn_unused_configs = true
 check_untyped_defs = true
 strict_optional = true
-exclude = ["venv", "tests", "phonenumber_field", ".*migrations/.*", ]
+exclude = ["venv", "tests", ".*migrations/.*", ]
 plugins = [
     "mypy_django_plugin.main",
-    "pydantic.mypy"
 ]
 
 [tool.black]
